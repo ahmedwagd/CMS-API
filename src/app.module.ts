@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CommandRunnerModule } from 'nest-commander';
 import { AppController } from './app.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
@@ -12,6 +13,9 @@ import { InvoicesModule } from './modules/invoices/invoices.module';
 import { MedicalRecordsModule } from './modules/medical-records/medical-records.module';
 import { WalletsModule } from './modules/wallets/wallets.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { RolesModule } from './modules/roles/roles.module';
+import { PermissionsModule } from './modules/permissions/permissions.module';
+import { SeedCommand } from './commands/seed.command';
 
 @Module({
   imports: [
@@ -27,8 +31,11 @@ import { AuditModule } from './modules/audit/audit.module';
     MedicalRecordsModule,
     WalletsModule,
     AuditModule,
+    RolesModule,
+    PermissionsModule,
+    CommandRunnerModule,
   ],
   controllers: [AppController],
-  providers: [],
+  providers: [SeedCommand],
 })
 export class AppModule {}

@@ -6,8 +6,6 @@ import jwtConfig from 'src/config/jwt.config';
 import { AuthController } from './auth.controller';
 import refreshConfig from 'src/config/refresh.config';
 import { PassportModule } from '@nestjs/passport';
-import { UsersModule } from 'src/modules/users/users.module';
-import { PrismaModule } from 'src/prisma/prisma.module';
 
 @Module({
   imports: [
@@ -15,8 +13,6 @@ import { PrismaModule } from 'src/prisma/prisma.module';
     ConfigModule.forFeature(jwtConfig),
     ConfigModule.forFeature(refreshConfig),
     PassportModule,
-    // PrismaModule,
-    UsersModule,
   ],
   providers: [AuthService],
   exports: [AuthService],

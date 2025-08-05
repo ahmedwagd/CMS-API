@@ -24,5 +24,5 @@ export class CreateUserDto {
   name: string;
 
   @IsUUID()
-  role: string;
+  roleId: string;
 }
