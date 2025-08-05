@@ -7,21 +7,23 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { JwtRefreshGuard } from 'src/common/guards/jwt-refresh.guard';
+import { LocalAuthGuard } from 'src/common/guards/local-auth.guard';
+import { RolesGuard } from 'src/common/guards/roles.guard';
 import { AuthService } from './auth.service';
 import { CreateUserDto, LoginDto } from './dto';
-import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
-import { LocalAuthGuard } from 'src/common/guards/local-auth.guard';
-import { JwtRefreshGuard } from 'src/common/guards/jwt-refresh.guard';
-import { RequirePermissions } from 'src/common/decorators/permissions.decorator';
-import { PermissionsGuard } from 'src/common/guards/permissions.guard';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
   @Post('register')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('create_users')
+  @UseGuards(JwtAuthGuard, RolesGuard) // Role based access
+  @Roles('admin')
+  // @UseGuards(JwtAuthGuard, PermissionsGuard) // Permission based access
+  // @RequirePermissions('create_users')
   async register(@Body() createUserDto: CreateUserDto) {
     return this.authService.register(createUserDto);
   }

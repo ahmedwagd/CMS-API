@@ -19,7 +19,10 @@ import { SeedCommand } from './commands/seed.command';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ 
+      isGlobal: true,
+      load: [require('./config/configuration').default],
+    }),
     PrismaModule,
     AuthModule,
     UsersModule,
