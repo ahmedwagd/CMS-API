@@ -11,6 +11,7 @@ import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { MedicalRecordsModule } from './modules/medical-records/medical-records.module';
 import { WalletsModule } from './modules/wallets/wallets.module';
+import { AuditModule } from './modules/audit/audit.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { WalletsModule } from './modules/wallets/wallets.module';
     InvoicesModule,
     MedicalRecordsModule,
     WalletsModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [],

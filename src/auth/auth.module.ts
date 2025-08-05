@@ -17,7 +17,7 @@ import { UsersModule } from 'src/modules/users/users.module';
     // PrismaModule,
     UsersModule,
   ],
-  providers: [AuthService],
+  providers: [AuthService, PermissionsService],
   exports: [AuthService],
   controllers: [AuthController],
 })
@@ -37,6 +37,7 @@ export class AuthModule {}
 // import { JwtStrategy } from 'src/common/strategies/jwt.strategy';
 // import { RefreshStrategy } from 'src/common/strategies/refresh-token.strategy';
 // import { UsersModule } from 'src/modules/users/users.module';
+import { PermissionsService } from './permissions/permissions.service';
 
 // @Module({
 //   imports: [
