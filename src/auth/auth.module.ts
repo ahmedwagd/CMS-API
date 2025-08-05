@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import refreshConfig from 'src/config/refresh.config';
 import { PassportModule } from '@nestjs/passport';
 import { UsersModule } from 'src/modules/users/users.module';
+import { PrismaModule } from 'src/prisma/prisma.module';
 
 @Module({
   imports: [
@@ -14,10 +15,10 @@ import { UsersModule } from 'src/modules/users/users.module';
     ConfigModule.forFeature(jwtConfig),
     ConfigModule.forFeature(refreshConfig),
     PassportModule,
-    // PrismaModule,
+    PrismaModule,
     UsersModule,
   ],
-  providers: [AuthService, PermissionsService],
+  providers: [AuthService],
   exports: [AuthService],
   controllers: [AuthController],
 })
@@ -37,7 +38,8 @@ export class AuthModule {}
 // import { JwtStrategy } from 'src/common/strategies/jwt.strategy';
 // import { RefreshStrategy } from 'src/common/strategies/refresh-token.strategy';
 // import { UsersModule } from 'src/modules/users/users.module';
-import { PermissionsService } from './permissions/permissions.service';
+// import { PermissionsService } from './permissions/permissions.service';
+// import { UsersModule } from 'src/modules/users/users.module';
 
 // @Module({
 //   imports: [
