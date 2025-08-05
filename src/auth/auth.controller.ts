@@ -13,11 +13,15 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { LocalAuthGuard } from 'src/common/guards/local-auth.guard';
 import { JwtRefreshGuard } from 'src/common/guards/jwt-refresh.guard';
+import { RequirePermissions } from 'src/common/decorators/permissions.decorator';
+import { PermissionsGuard } from 'src/common/guards/permissions.guard';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
   @Post('register')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('create_users')
   async register(@Body() createUserDto: CreateUserDto) {
     return this.authService.register(createUserDto);
   }

@@ -10,23 +10,23 @@ import {
   Query,
 } from '@nestjs/common';
 import { RolesService, CreatePermissionDto } from '../roles/roles.service';
-// import { JwtAuthGuard } from '../auth/guards';
-// import { RequirePermissions } from '../auth/decorators';
-// import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { PermissionsGuard } from 'src/common/guards/permissions.guard';
+import { RequirePermissions } from 'src/common/decorators/permissions.decorator';
 
 @Controller('permissions')
-// @UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class PermissionsController {
   constructor(private rolesService: RolesService) {}
 
   @Post()
-  // @RequirePermissions('manage_permissions')
+  @RequirePermissions('manage_permissions')
   createPermission(@Body() createPermissionDto: CreatePermissionDto) {
     return this.rolesService.createPermission(createPermissionDto);
   }
 
   @Get()
-  // @RequirePermissions('view_permissions')
+  @RequirePermissions('view_permissions')
   findAllPermissions(@Query('category') category?: string) {
     if (category) {
       return this.rolesService.findPermissionsByCategory(category);
@@ -35,7 +35,7 @@ export class PermissionsController {
   }
 
   @Put(':id')
-  // @RequirePermissions('manage_permissions')
+  @RequirePermissions('manage_permissions')
   updatePermission(
     @Param('id') id: string,
     @Body() updateData: Partial<CreatePermissionDto>,
@@ -44,7 +44,7 @@ export class PermissionsController {
   }
 
   @Delete(':id')
-  // @RequirePermissions('manage_permissions')
+  @RequirePermissions('manage_permissions')
   deletePermission(@Param('id') id: string) {
     return this.rolesService.deletePermission(id);
   }
