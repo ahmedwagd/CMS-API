@@ -188,7 +188,7 @@ export class AuthService {
       },
     });
 
-    if (user && user.isActive && (await verify(password, user.password))) {
+    if (user && user.isActive && (await verify(user.password, password))) {
       return this.excludePassword(user);
     }
     return null;
