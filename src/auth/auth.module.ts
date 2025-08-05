@@ -1,16 +1,30 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
+import jwtConfig from 'src/config/jwt.config';
+import { AuthController } from './auth.controller';
+import refreshConfig from 'src/config/refresh.config';
+import { PassportModule } from '@nestjs/passport';
+import { UsersModule } from 'src/modules/users/users.module';
 
 @Module({
+  imports: [
+    JwtModule.registerAsync(jwtConfig.asProvider()),
+    ConfigModule.forFeature(jwtConfig),
+    ConfigModule.forFeature(refreshConfig),
+    PassportModule,
+    // PrismaModule,
+    UsersModule,
+  ],
   providers: [AuthService],
+  exports: [AuthService],
+  controllers: [AuthController],
 })
 export class AuthModule {}
 
 // import { Module } from '@nestjs/common';
-// import { ConfigModule } from '@nestjs/config';
-// import { JwtModule } from '@nestjs/jwt';
 // import { AuthService } from './auth.service';
-// import { AuthController } from './auth.controller';
 // import jwtConfig from '../config/jwt.config';
 // import refreshConfig from '../config/refresh.config';
 // // import googleOauthConfig from '../config/google-oauth.config';
