@@ -15,7 +15,7 @@ import { PrismaModule } from 'src/prisma/prisma.module';
     ConfigModule.forFeature(jwtConfig),
     ConfigModule.forFeature(refreshConfig),
     PassportModule,
-    PrismaModule,
+    // PrismaModule,
     UsersModule,
   ],
   providers: [AuthService],
