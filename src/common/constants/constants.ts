@@ -10,7 +10,7 @@ export const AUTH_CONSTANTS = {
   STRATEGIES: {
     JWT: 'jwt',
     LOCAL: 'local',
-    REFRESH: 'refresh-jwt',
+    REFRESH: 'jwt-refresh',
     GOOGLE: 'google',
   },
 };
