@@ -1,6 +1,6 @@
 import { Gender } from 'generated/prisma';
 
-export class Doctor {
+export class DoctorResponseDto {
   id: string;
   name: string;
   phone: string;
@@ -14,17 +14,12 @@ export class Doctor {
   createdAt: Date;
   updatedAt: Date;
 
-  // Relations
   clinic?: {
     id: string;
     name: string;
     address: string;
     phone: string;
   };
-
-  appointments?: any[];
-  examinations?: any[];
-  treatmentPlans?: any[];
 
   _count?: {
     appointments: number;
