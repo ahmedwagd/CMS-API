@@ -90,6 +90,28 @@ export class SeederService {
         category: 'clinic',
       },
 
+      // Doctors Management
+      {
+        name: 'view_doctors',
+        description: 'View doctor list',
+        category: 'doctor',
+      },
+      {
+        name: 'create_doctors',
+        description: 'Create new doctors',
+        category: 'doctor',
+      },
+      {
+        name: 'edit_doctors',
+        description: 'Edit doctor information',
+        category: 'doctor',
+      },
+      {
+        name: 'delete_doctors',
+        description: 'Delete doctors',
+        category: 'doctor',
+      },
+
       // Patient Management
       {
         name: 'view_patients',
