@@ -1,34 +1,150 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+  ParseUUIDPipe,
+  HttpStatus,
+  HttpCode,
+  UseInterceptors,
+  ClassSerializerInterceptor,
+} from '@nestjs/common';
 import { PatientsService } from './patients.service';
-import { CreatePatientDto } from './dto/create-patient.dto';
-import { UpdatePatientDto } from './dto/update-patient.dto';
+import {
+  CreatePatientDto,
+  UpdatePatientDto,
+  FilterPatientDto,
+  PatientResponseDto,
+  PatientAppointmentFilterDto,
+  AddProgressionNoteDto,
+} from './dto';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { PermissionsGuard } from 'src/common/guards/permissions.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { RequirePermissions } from 'src/common/decorators/permissions.decorator';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { plainToClass } from 'class-transformer';
 
 @Controller('patients')
+@UseGuards(JwtAuthGuard)
+@UseInterceptors(ClassSerializerInterceptor)
 export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
 
   @Post()
-  create(@Body() createPatientDto: CreatePatientDto) {
-    return this.patientsService.create(createPatientDto);
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin', 'super_admin', 'receptionist')
+  @RequirePermissions('create_patients')
+  @HttpCode(HttpStatus.CREATED)
+  async create(
+    @Body() createPatientDto: CreatePatientDto,
+  ): Promise<PatientResponseDto> {
+    const patient = await this.patientsService.create(createPatientDto);
+    return plainToClass(PatientResponseDto, patient);
   }
 
   @Get()
-  findAll() {
-    return this.patientsService.findAll();
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('view_patients')
+  async findAll(@Query() filterDto: FilterPatientDto) {
+    return this.patientsService.findAll(filterDto);
+  }
+
+  @Get('stats')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin', 'super_admin')
+  @RequirePermissions('view_patients')
+  async getStats() {
+    return this.patientsService.getPatientStats();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.patientsService.findOne(+id);
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('view_patients')
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<PatientResponseDto> {
+    const patient = await this.patientsService.findOne(id);
+    return plainToClass(PatientResponseDto, patient);
+  }
+
+  @Get(':id/appointments')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('view_appointments', 'view_patients')
+  async getPatientAppointments(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() filterDto: PatientAppointmentFilterDto,
+  ) {
+    const { startDate, endDate, ...rest } = filterDto;
+    const filter = {
+      ...rest,
+      ...(startDate && { startDate: new Date(startDate) }),
+      ...(endDate && { endDate: new Date(endDate) }),
+    };
+
+    return this.patientsService.getPatientAppointments(id, filter);
+  }
+
+  @Get(':id/progression-notes')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('view_patients', 'view_medical_records')
+  async getProgressionNotes(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.patientsService.getProgressionNotes(id, { page, limit });
+  }
+
+  @Post(':id/progression-notes')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin', 'super_admin', 'doctor')
+  @RequirePermissions('create_medical_records')
+  async addProgressionNote(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() addProgressionNoteDto: AddProgressionNoteDto,
+  ) {
+    return this.patientsService.addProgressionNote(
+      id,
+      addProgressionNoteDto.note,
+    );
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePatientDto: UpdatePatientDto) {
-    return this.patientsService.update(+id, updatePatientDto);
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin', 'super_admin', 'receptionist')
+  @RequirePermissions('edit_patients')
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updatePatientDto: UpdatePatientDto,
+  ): Promise<PatientResponseDto> {
+    const patient = await this.patientsService.update(id, updatePatientDto);
+    return plainToClass(PatientResponseDto, patient);
+  }
+
+  @Patch(':id/activate')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin', 'super_admin')
+  @RequirePermissions('edit_patients')
+  async activate(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<PatientResponseDto> {
+    const patient = await this.patientsService.activate(id);
+    return plainToClass(PatientResponseDto, patient);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.patientsService.remove(+id);
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin', 'super_admin')
+  @RequirePermissions('delete_patients')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    await this.patientsService.remove(id);
   }
 }
