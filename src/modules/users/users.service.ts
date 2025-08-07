@@ -6,12 +6,26 @@ import {
 } from '@nestjs/common';
 import { hash } from 'argon2';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateUserDto, FilterUserDto, UpdateUserDto } from './dto';
+import {
+  ChangePasswordDto,
+  CreateUserDto,
+  FilterUserDto,
+  UpdateUserDto,
+} from './dto';
 
+/**
+ * Users service
+ * @description This service is used to manage users
+ */
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
-
+  /**
+   * Create a new user
+   * @param createUserDto
+   * @returns UserResponseDto
+   * @throws ConflictException if user with email already exists
+   */
   async create(createUserDto: CreateUserDto) {
     const { email, password, name, roleId } = createUserDto;
 
@@ -63,6 +77,12 @@ export class UsersService {
     return userWithoutPassword;
   }
 
+  /**
+   * Get all users
+   * @param filterDto
+   * @returns UserResponseDto[]
+   * @throws BadRequestException if filterDto is not valid
+   */
   async findAll(filterDto?: FilterUserDto) {
     const {
       page = 1,
@@ -137,6 +157,12 @@ export class UsersService {
     };
   }
 
+  /**
+   * Get user by id
+   * @param id
+   * @returns UserResponseDto
+   * @throws NotFoundException if user not found
+   */
   async findOne(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -168,6 +194,12 @@ export class UsersService {
     return userWithoutPassword;
   }
 
+  /**
+   * Get user by email
+   * @param email
+   * @returns UserResponseDto
+   * @throws NotFoundException if user not found
+   */
   async findByEmail(email: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
@@ -176,7 +208,14 @@ export class UsersService {
           include: {
             permissions: {
               include: {
-                permission: true,
+                permission: {
+                  select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    category: true,
+                  },
+                },
               },
             },
           },
@@ -184,9 +223,22 @@ export class UsersService {
       },
     });
 
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     return user;
   }
 
+  /**
+   * Update user
+   * @param id
+   * @param updateUserDto
+   * @returns UserResponseDto
+   * @throws NotFoundException if user not found
+   * @throws ConflictException if email is already in use
+   * @throws BadRequestException if role is invalid or inactive
+   */
   async update(id: string, updateUserDto: UpdateUserDto) {
     const { password, roleId, ...updateData } = updateUserDto;
 
@@ -251,6 +303,12 @@ export class UsersService {
     return userWithoutPassword;
   }
 
+  /**
+   * Delete user
+   * @param id
+   * @returns UserResponseDto
+   * @throws NotFoundException if user not found
+   */
   async remove(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -280,6 +338,12 @@ export class UsersService {
     return userWithoutPassword;
   }
 
+  /**
+   * Activate user
+   * @param id
+   * @returns UserResponseDto
+   * @throws NotFoundException if user not found
+   */
   async activate(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -308,6 +372,32 @@ export class UsersService {
     return userWithoutPassword;
   }
 
+  /**
+   * Change user password
+   * @param id
+   * @param changePasswordDto
+   * @returns { message: 'Password changed successfully' }
+   * @throws NotFoundException if user not found
+   * @throws UnauthorizedException if old password is invalid
+   */
+  async changePassword(id: string, changePasswordDto: ChangePasswordDto) {
+    const { oldPassword, newPassword } = changePasswordDto;
+    const user = await this.findOne(id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    // Todo:  refactoring this method
+
+    const hashedPassword = await hash(newPassword);
+    await this.update(id, { password: hashedPassword });
+
+    return { message: 'Password changed successfully' };
+  }
+
+  /**
+   * Get user stats
+   * @returns UserStatsDto
+   */
   async getUserStats() {
     const [totalUsers, activeUsers, inactiveUsers, usersByRole] =
       await Promise.all([
@@ -343,6 +433,11 @@ export class UsersService {
     };
   }
 
+  /**
+   * Update user last login
+   * @param id
+   * @returns void
+   */
   async updateLastLogin(id: string) {
     await this.prisma.user.update({
       where: { id },

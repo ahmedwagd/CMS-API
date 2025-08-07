@@ -11,7 +11,7 @@ import jwtConfig from 'src/config/jwt.config';
 import refreshConfig from 'src/config/refresh.config';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UsersService } from 'src/modules/users/users.service';
-import { CreateUserDto, LoginDto } from './dto';
+import { ChangePasswordDto, CreateUserDto, LoginDto } from './dto';
 
 @Injectable()
 export class AuthService {
@@ -96,6 +96,24 @@ export class AuthService {
       data: { hashedRefreshToken: null },
     });
     return { message: 'Logged out successfully' };
+  }
+
+  async changePassword(email: string, changePasswordDto: ChangePasswordDto) {
+    const { oldPassword, newPassword } = changePasswordDto;
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    const isPasswordValid = await verify(user.password, oldPassword);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    const hashedPassword = await hash(newPassword);
+    await this.usersService.update(user.id, {
+      password: hashedPassword,
+    });
+
+    return { message: 'Password changed successfully' };
   }
 
   private async generateTokens(userId: string, email: string) {

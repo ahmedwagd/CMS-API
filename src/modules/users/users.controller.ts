@@ -21,6 +21,7 @@ import {
   UpdateUserDto,
   FilterUserDto,
   UserResponseDto,
+  ChangePasswordDto,
 } from './dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
@@ -112,6 +113,21 @@ export class UsersController {
   ): Promise<UserResponseDto> {
     const activatedUser = await this.usersService.activate(id);
     return plainToClass(UserResponseDto, activatedUser);
+  }
+
+  @Patch(':id/change-password')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin', 'super_admin')
+  @RequirePermissions('edit_users')
+  async changePassword(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ): Promise<UserResponseDto> {
+    const updatedUser = await this.usersService.changePassword(
+      id,
+      changePasswordDto,
+    );
+    return plainToClass(UserResponseDto, updatedUser);
   }
 
   @Delete(':id')

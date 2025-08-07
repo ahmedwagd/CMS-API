@@ -3,7 +3,13 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from 'src/modules/users/users.service';
-
+/**
+ * JWT strategy
+ * @description This strategy is used to validate JWT tokens
+ * @param payload
+ * @returns UserResponseDto
+ * @throws UnauthorizedException if token is invalid
+ */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
