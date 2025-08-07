@@ -1,34 +1,121 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  UseInterceptors,
+  ClassSerializerInterceptor,
+} from '@nestjs/common';
 import { ClinicService } from './clinic.service';
-import { CreateClinicDto } from './dto/create-clinic.dto';
-import { UpdateClinicDto } from './dto/update-clinic.dto';
+import {
+  CreateClinicDto,
+  UpdateClinicDto,
+  FilterClinicDto,
+  ClinicResponseDto,
+} from './dto';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { PermissionsGuard } from 'src/common/guards/permissions.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { RequirePermissions } from 'src/common/decorators/permissions.decorator';
+import { plainToClass } from 'class-transformer';
 
-@Controller('clinic')
+@Controller('clinics')
+@UseGuards(JwtAuthGuard)
+@UseInterceptors(ClassSerializerInterceptor)
 export class ClinicController {
   constructor(private readonly clinicService: ClinicService) {}
 
   @Post()
-  create(@Body() createClinicDto: CreateClinicDto) {
-    return this.clinicService.create(createClinicDto);
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin', 'super_admin')
+  @RequirePermissions('create_clinics')
+  @HttpCode(HttpStatus.CREATED)
+  async create(
+    @Body() createClinicDto: CreateClinicDto,
+  ): Promise<ClinicResponseDto> {
+    const clinic = await this.clinicService.create(createClinicDto);
+    return plainToClass(ClinicResponseDto, clinic);
   }
 
   @Get()
-  findAll() {
-    return this.clinicService.findAll();
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('view_clinics')
+  async findAll(@Query() filterDto: FilterClinicDto) {
+    const result = await this.clinicService.findAll(filterDto);
+    return {
+      ...result,
+      data: result.data.map((clinic) =>
+        plainToClass(ClinicResponseDto, clinic),
+      ),
+    };
+  }
+
+  @Get('stats')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin', 'super_admin', 'clinic_manager')
+  @RequirePermissions('view_clinics')
+  async getStats() {
+    return await this.clinicService.getClinicStats();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.clinicService.findOne(+id);
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('view_clinics')
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ClinicResponseDto> {
+    const clinic = await this.clinicService.findOne(id);
+    return plainToClass(ClinicResponseDto, clinic);
+  }
+
+  @Get(':id/doctors')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('view_clinics', 'view_doctors')
+  async getClinicDoctors(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.clinicService.getClinicDoctors(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateClinicDto: UpdateClinicDto) {
-    return this.clinicService.update(+id, updateClinicDto);
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin', 'super_admin', 'clinic_manager')
+  @RequirePermissions('edit_clinics')
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateClinicDto: UpdateClinicDto,
+  ): Promise<ClinicResponseDto> {
+    const updatedClinic = await this.clinicService.update(id, updateClinicDto);
+    return plainToClass(ClinicResponseDto, updatedClinic);
+  }
+
+  @Patch(':id/activate')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin', 'super_admin')
+  @RequirePermissions('edit_clinics')
+  async activate(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ClinicResponseDto> {
+    const activatedClinic = await this.clinicService.activate(id);
+    return plainToClass(ClinicResponseDto, activatedClinic);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.clinicService.remove(+id);
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin', 'super_admin')
+  @RequirePermissions('delete_clinics')
+  @HttpCode(HttpStatus.OK)
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ClinicResponseDto> {
+    const deactivatedClinic = await this.clinicService.remove(id);
+    return plainToClass(ClinicResponseDto, deactivatedClinic);
   }
 }

@@ -1,4 +1,4 @@
-export class Clinic {
+export class ClinicResponseDto {
   id: string;
   name: string;
   phone: string;
@@ -9,12 +9,14 @@ export class Clinic {
   createdAt: Date;
   updatedAt: Date;
 
-  // Relations
+  // Relations (optional)
   doctors?: Array<{
     id: string;
     name: string;
-    email?: string;
     specialization?: string;
-    isActive: boolean;
   }>;
+
+  _count?: {
+    doctors: number;
+  };
 }
