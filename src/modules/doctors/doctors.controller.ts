@@ -1,4 +1,3 @@
-// src/modules/doctors/doctors.controller.ts
 import {
   Controller,
   Get,

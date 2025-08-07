@@ -1,4 +1,3 @@
-// src/modules/doctors/doctors.service.ts
 import {
   Injectable,
   ConflictException,
@@ -6,7 +5,12 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateDoctorDto, UpdateDoctorDto, FilterDoctorDto } from './dto';
+import {
+  CreateDoctorDto,
+  UpdateDoctorDto,
+  FilterDoctorDto,
+  DoctorAppointmentFilterDto,
+} from './dto';
 
 @Injectable()
 export class DoctorsService {
@@ -16,7 +20,7 @@ export class DoctorsService {
     const { phone, email, socialId, licenseNumber, clinicId, ...doctorData } =
       createDoctorDto;
 
-    // Check for unique constraints
+    // Check for existing doctor with unique fields
     const existingDoctor = await this.prisma.doctor.findFirst({
       where: {
         OR: [
@@ -43,12 +47,11 @@ export class DoctorsService {
       }
     }
 
-    // Verify clinic exists if provided
+    // Validate clinic if provided
     if (clinicId) {
       const clinic = await this.prisma.clinic.findFirst({
         where: { id: clinicId, isActive: true },
       });
-
       if (!clinic) {
         throw new BadRequestException('Invalid or inactive clinic');
       }
@@ -70,6 +73,8 @@ export class DoctorsService {
             name: true,
             address: true,
             phone: true,
+            manager: true,
+            email: true,
           },
         },
         _count: {
@@ -99,10 +104,9 @@ export class DoctorsService {
     } = filterDto || {};
 
     const skip = (page - 1) * limit;
-
-    // Build where clause
     const where: any = {};
 
+    // Search functionality
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -110,9 +114,11 @@ export class DoctorsService {
         { phone: { contains: search, mode: 'insensitive' } },
         { specialization: { contains: search, mode: 'insensitive' } },
         { licenseNumber: { contains: search, mode: 'insensitive' } },
+        { socialId: { contains: search, mode: 'insensitive' } },
       ];
     }
 
+    // Filters
     if (clinicId) {
       where.clinicId = clinicId;
     }
@@ -129,7 +135,7 @@ export class DoctorsService {
       where.isActive = isActive;
     }
 
-    // Build orderBy clause
+    // Sorting
     const orderBy: any = {};
     if (sortBy === 'clinic') {
       orderBy.clinic = { name: sortOrder };
@@ -150,6 +156,8 @@ export class DoctorsService {
               name: true,
               address: true,
               phone: true,
+              manager: true,
+              email: true,
             },
           },
           _count: {
@@ -179,7 +187,15 @@ export class DoctorsService {
     const doctor = await this.prisma.doctor.findUnique({
       where: { id },
       include: {
-        clinic: true,
+        clinic: {
+          include: {
+            _count: {
+              select: {
+                doctors: true,
+              },
+            },
+          },
+        },
         appointments: {
           take: 10,
           orderBy: { date: 'desc' },
@@ -190,6 +206,16 @@ export class DoctorsService {
                 name: true,
                 phone: true,
                 email: true,
+                birthDate: true,
+                gender: true,
+              },
+            },
+            invoice: {
+              select: {
+                id: true,
+                amount: true,
+                status: true,
+                dueDate: true,
               },
             },
           },
@@ -202,6 +228,8 @@ export class DoctorsService {
               select: {
                 id: true,
                 name: true,
+                birthDate: true,
+                gender: true,
               },
             },
           },
@@ -214,6 +242,8 @@ export class DoctorsService {
               select: {
                 id: true,
                 name: true,
+                birthDate: true,
+                gender: true,
               },
             },
           },
@@ -247,12 +277,12 @@ export class DoctorsService {
       throw new NotFoundException('Doctor not found');
     }
 
-    // Check for unique constraints if values are being updated
+    // Check for conflicts with unique fields
     if (phone || email || socialId || licenseNumber) {
       const conflictingDoctor = await this.prisma.doctor.findFirst({
         where: {
           AND: [
-            { id: { not: id } }, // Exclude current doctor
+            { id: { not: id } },
             {
               OR: [
                 ...(phone ? [{ phone }] : []),
@@ -281,12 +311,11 @@ export class DoctorsService {
       }
     }
 
-    // Verify clinic if provided
+    // Validate clinic if provided
     if (clinicId) {
       const clinic = await this.prisma.clinic.findFirst({
         where: { id: clinicId, isActive: true },
       });
-
       if (!clinic) {
         throw new BadRequestException('Invalid or inactive clinic');
       }
@@ -300,7 +329,7 @@ export class DoctorsService {
         ...(email && { email }),
         ...(socialId && { socialId }),
         ...(licenseNumber && { licenseNumber }),
-        ...(clinicId && { clinicId }),
+        ...(clinicId !== undefined && { clinicId }),
       },
       include: {
         clinic: {
@@ -309,6 +338,8 @@ export class DoctorsService {
             name: true,
             address: true,
             phone: true,
+            manager: true,
+            email: true,
           },
         },
         _count: {
@@ -342,14 +373,13 @@ export class DoctorsService {
       throw new NotFoundException('Doctor not found');
     }
 
-    // Check if doctor has associated records
     const hasAssociatedRecords =
       doctor._count.appointments > 0 ||
       doctor._count.examinations > 0 ||
       doctor._count.treatmentPlans > 0;
 
     if (hasAssociatedRecords) {
-      // Soft delete - set isActive to false
+      // Soft delete by setting isActive to false
       return this.prisma.doctor.update({
         where: { id },
         data: { isActive: false },
@@ -405,6 +435,8 @@ export class DoctorsService {
       doctorsByClinic,
       doctorsBySpecialization,
       doctorsWithRecentActivity,
+      unassignedDoctors,
+      doctorsByGender,
     ] = await Promise.all([
       this.prisma.doctor.count(),
       this.prisma.doctor.count({ where: { isActive: true } }),
@@ -434,9 +466,17 @@ export class DoctorsService {
           },
         },
       }),
+      this.prisma.doctor.count({
+        where: { isActive: true, clinicId: null },
+      }),
+      this.prisma.doctor.groupBy({
+        by: ['gender'],
+        _count: true,
+        where: { isActive: true },
+      }),
     ]);
 
-    // Get clinic names for grouped data
+    // Get clinic names for the stats
     const clinicIds = doctorsByClinic
       .map((item) => item.clinicId)
       .filter(Boolean);
@@ -461,25 +501,26 @@ export class DoctorsService {
       }),
     );
 
+    const doctorsByGenderFormatted = doctorsByGender.map((item) => ({
+      gender: item.gender,
+      count: item._count,
+    }));
+
     return {
       totalDoctors,
       activeDoctors,
       inactiveDoctors,
+      unassignedDoctors,
       doctorsWithRecentActivity,
       doctorsByClinic: doctorsByClinicWithNames,
       doctorsBySpecialization: doctorsBySpecializationFormatted,
+      doctorsByGender: doctorsByGenderFormatted,
     };
   }
 
   async getDoctorAppointments(
     doctorId: string,
-    filterDto?: {
-      page?: number;
-      limit?: number;
-      status?: string;
-      startDate?: Date;
-      endDate?: Date;
-    },
+    filterDto?: DoctorAppointmentFilterDto,
   ) {
     const doctor = await this.prisma.doctor.findUnique({
       where: { id: doctorId },
@@ -523,6 +564,17 @@ export class DoctorsService {
               name: true,
               phone: true,
               email: true,
+              birthDate: true,
+              gender: true,
+            },
+          },
+          invoice: {
+            select: {
+              id: true,
+              amount: true,
+              status: true,
+              dueDate: true,
+              paidAt: true,
             },
           },
         },
@@ -568,6 +620,8 @@ export class DoctorsService {
             name: true,
             address: true,
             phone: true,
+            manager: true,
+            email: true,
           },
         },
       },
@@ -586,6 +640,103 @@ export class DoctorsService {
     return this.prisma.doctor.update({
       where: { id: doctorId },
       data: { clinicId: null },
+      include: {
+        _count: {
+          select: {
+            appointments: true,
+            examinations: true,
+            treatmentPlans: true,
+          },
+        },
+      },
     });
+  }
+
+  async getDoctorSchedule(doctorId: string, startDate: Date, endDate: Date) {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id: doctorId },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException('Doctor not found');
+    }
+
+    const appointments = await this.prisma.appointment.findMany({
+      where: {
+        doctorId,
+        date: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      orderBy: [{ date: 'asc' }, { time: 'asc' }],
+      include: {
+        patient: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    return appointments;
+  }
+
+  async getDoctorWorkload(doctorId: string, year: number, month?: number) {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id: doctorId },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException('Doctor not found');
+    }
+
+    const startDate = month
+      ? new Date(year, month - 1, 1)
+      : new Date(year, 0, 1);
+
+    const endDate = month ? new Date(year, month, 0) : new Date(year, 11, 31);
+
+    const [appointmentCount, completedAppointments, totalRevenue] =
+      await Promise.all([
+        this.prisma.appointment.count({
+          where: {
+            doctorId,
+            date: { gte: startDate, lte: endDate },
+          },
+        }),
+        this.prisma.appointment.count({
+          where: {
+            doctorId,
+            date: { gte: startDate, lte: endDate },
+            status: 'COMPLETED',
+          },
+        }),
+        this.prisma.invoice.aggregate({
+          where: {
+            status: 'PAID',
+            appointment: {
+              doctorId,
+              date: { gte: startDate, lte: endDate },
+              status: 'COMPLETED',
+            },
+          },
+          _sum: {
+            amount: true,
+          },
+        }),
+      ]);
+
+    return {
+      appointmentCount,
+      completedAppointments,
+      completionRate:
+        appointmentCount > 0
+          ? Math.round((completedAppointments / appointmentCount) * 100)
+          : 0,
+      totalRevenue: totalRevenue._sum.amount || 0,
+    };
   }
 }

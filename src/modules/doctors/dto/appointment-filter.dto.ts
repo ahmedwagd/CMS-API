@@ -1,12 +1,13 @@
-import {
-  IsOptional,
-  IsString,
-  IsDateString,
-  IsInt,
-  Min,
-  Max,
-} from 'class-validator';
 import { Type } from 'class-transformer';
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  Max,
+  Min,
+} from 'class-validator';
+import { AppointmentStatus } from 'generated/prisma';
 
 export class DoctorAppointmentFilterDto {
   @IsOptional()
@@ -23,8 +24,8 @@ export class DoctorAppointmentFilterDto {
   limit?: number = 10;
 
   @IsOptional()
-  @IsString()
-  status?: string;
+  @IsEnum(AppointmentStatus)
+  status?: AppointmentStatus;
 
   @IsOptional()
   @IsDateString()

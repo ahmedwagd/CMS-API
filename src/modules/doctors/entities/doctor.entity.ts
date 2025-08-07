@@ -20,15 +20,28 @@ export class Doctor {
     name: string;
     address: string;
     phone: string;
+    manager: string;
+    email: string;
+    _count?: {
+      doctors: number;
+    };
   };
 
-  appointments?: any[];
-  examinations?: any[];
-  treatmentPlans?: any[];
-
-  _count?: {
-    appointments: number;
-    examinations: number;
-    treatmentPlans: number;
-  };
+  appointments?: Array<{
+    id: string;
+    date: Date;
+    time: Date;
+    status: string;
+    duration?: number;
+    notes?: string;
+    patient?: {
+      id: string;
+      name: string;
+      phone: string;
+      email?: string;
+      gender: Gender;
+      socialId?: string;
+      age?: number;
+    };
+  }>;
 }
