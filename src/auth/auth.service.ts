@@ -109,6 +109,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
     const hashedPassword = await hash(newPassword);
+    // Todo: after update userService changePassword method change this
     await this.usersService.update(user.id, {
       password: hashedPassword,
     });
