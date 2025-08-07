@@ -1,35 +1,35 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  ClassSerializerInterceptor,
+  Controller,
   Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
   Query,
   UseGuards,
-  ParseUUIDPipe,
-  HttpStatus,
-  HttpCode,
   UseInterceptors,
-  ClassSerializerInterceptor,
 } from '@nestjs/common';
+import { NotImplementedException } from '@nestjs/common/exceptions';
+import { plainToClass } from 'class-transformer';
+import { RequirePermissions } from 'src/common/decorators/permissions.decorator';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { PermissionsGuard } from 'src/common/guards/permissions.guard';
+import { RolesGuard } from 'src/common/guards/roles.guard';
 import { DoctorsService } from './doctors.service';
 import {
-  CreateDoctorDto,
-  UpdateDoctorDto,
-  FilterDoctorDto,
-  DoctorResponseDto,
   AssignClinicDto,
+  CreateDoctorDto,
   DoctorAppointmentFilterDto,
+  DoctorResponseDto,
+  FilterDoctorDto,
+  UpdateDoctorDto,
 } from './dto';
-import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
-import { RolesGuard } from 'src/common/guards/roles.guard';
-import { PermissionsGuard } from 'src/common/guards/permissions.guard';
-import { Roles } from 'src/common/decorators/roles.decorator';
-import { RequirePermissions } from 'src/common/decorators/permissions.decorator';
-import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import { plainToClass } from 'class-transformer';
 
 @Controller('doctors')
 @UseGuards(JwtAuthGuard)
@@ -142,31 +142,49 @@ export class DoctorsController {
     await this.doctorsService.remove(id);
   }
 
-  // Special endpoint for doctors to view their own profile
-  @Get('me/profile')
-  @UseGuards(RolesGuard)
-  @Roles('doctor')
-  async getMyProfile(@CurrentUser() user: any) {
-    // Assuming the user object contains doctor information or we need to find by user relationship
-    // This would require a User-Doctor relationship in your schema
-    // For now, assuming we have a way to get doctor by user
-    // You might need to add a userId field to Doctor model or create a User-Doctor relation
-    throw new Error(
-      'This endpoint requires User-Doctor relationship implementation',
+  // New endpoints for doctor workload and schedule
+  @Get(':id/schedule')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('view_schedules')
+  async getDoctorSchedule(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.doctorsService.getDoctorSchedule(
+      id,
+      new Date(startDate),
+      new Date(endDate),
     );
   }
 
-  // Special endpoint for doctors to view their own appointments
+  @Get(':id/workload')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('view_workload')
+  async getDoctorWorkload(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('year') year: number,
+    @Query('month') month?: number,
+  ) {
+    return this.doctorsService.getDoctorWorkload(id, year, month);
+  }
+
+  // Placeholder endpoints for future implementation
+  @Get('me/profile')
+  @UseGuards(RolesGuard)
+  @Roles('doctor')
+  getMyProfile() {
+    throw new NotImplementedException(
+      'User-Doctor relationship not implemented yet',
+    );
+  }
+
   @Get('me/appointments')
   @UseGuards(RolesGuard)
   @Roles('doctor')
-  async getMyAppointments(
-    @CurrentUser() user: any,
-    @Query() filterDto: DoctorAppointmentFilterDto,
-  ) {
-    // Similar to above - needs User-Doctor relationship
-    throw new Error(
-      'This endpoint requires User-Doctor relationship implementation',
+  getMyAppointments() {
+    throw new NotImplementedException(
+      'User-Doctor relationship not implemented yet',
     );
   }
 }
