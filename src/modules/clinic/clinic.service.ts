@@ -12,7 +12,34 @@ export class ClinicService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Create a new clinic
+   * Checks if a clinic with the given field value already exists, excluding the clinic with the given ID.
+   *
+   * @param id - The ID of the clinic to exclude from the check (null for create operations).
+   * @param field - The field to check for uniqueness (e.g., 'name', 'phone', 'email').
+   * @param value - The value to check.
+   * @throws ConflictException if a clinic with the same field value already exists.
+   */
+  private async checkUniqueness(
+    id: string | null,
+    field: string,
+    value: string,
+  ) {
+    const where: any = { [field]: { equals: value, mode: 'insensitive' } };
+    if (id) {
+      where.id = { not: id };
+    }
+    const existing = await this.prisma.clinic.findFirst({ where });
+    if (existing) {
+      throw new ConflictException(`Clinic with this ${field} already exists`);
+    }
+  }
+
+  /**
+   * Creates a new clinic.
+   *
+   * @param createClinicDto - The data to create the clinic.
+   * @returns The created clinic.
+   * @throws ConflictException if a clinic with the same name, phone, or email already exists.
    */
   async create(createClinicDto: CreateClinicDto) {
     const {
@@ -23,36 +50,9 @@ export class ClinicService {
       manager,
       isActive = true,
     } = createClinicDto;
-
-    // Check if clinic with same name already exists
-    const existingClinicByName = await this.prisma.clinic.findFirst({
-      where: { name: { equals: name, mode: 'insensitive' } },
-    });
-
-    if (existingClinicByName) {
-      throw new ConflictException('Clinic with this name already exists');
-    }
-
-    // Check if clinic with same phone already exists
-    const existingClinicByPhone = await this.prisma.clinic.findFirst({
-      where: { phone },
-    });
-
-    if (existingClinicByPhone) {
-      throw new ConflictException(
-        'Clinic with this phone number already exists',
-      );
-    }
-
-    // Check if clinic with same email already exists
-    const existingClinicByEmail = await this.prisma.clinic.findFirst({
-      where: { email: { equals: email, mode: 'insensitive' } },
-    });
-
-    if (existingClinicByEmail) {
-      throw new ConflictException('Clinic with this email already exists');
-    }
-
+    await this.checkUniqueness(null, 'name', name);
+    await this.checkUniqueness(null, 'phone', phone);
+    await this.checkUniqueness(null, 'email', email);
     const clinic = await this.prisma.clinic.create({
       data: {
         name,
@@ -68,12 +68,14 @@ export class ClinicService {
         },
       },
     });
-
     return clinic;
   }
 
   /**
-   * Get all clinics with filtering and pagination
+   * Retrieves a list of clinics with filtering, pagination, and sorting.
+   *
+   * @param filterDto - The filter options including page, limit, search, isActive, sortBy, and sortOrder.
+   * @returns An object containing the list of clinics and pagination metadata.
    */
   async findAll(filterDto?: FilterClinicDto) {
     const {
@@ -84,12 +86,8 @@ export class ClinicService {
       sortBy = 'createdAt',
       sortOrder = 'desc',
     } = filterDto || {};
-
     const skip = (page - 1) * limit;
-
-    // Build where clause
     const where: any = {};
-
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -98,15 +96,11 @@ export class ClinicService {
         { address: { contains: search, mode: 'insensitive' } },
       ];
     }
-
     if (typeof isActive === 'boolean') {
       where.isActive = isActive;
     }
-
-    // Build orderBy clause
     const orderBy: any = {};
     orderBy[sortBy] = sortOrder;
-
     const [clinics, total] = await Promise.all([
       this.prisma.clinic.findMany({
         where,
@@ -121,7 +115,6 @@ export class ClinicService {
       }),
       this.prisma.clinic.count({ where }),
     ]);
-
     return {
       data: clinics,
       pagination: {
@@ -134,7 +127,11 @@ export class ClinicService {
   }
 
   /**
-   * Get clinic by ID
+   * Retrieves a single clinic by ID.
+   *
+   * @param id - The ID of the clinic to retrieve.
+   * @returns The clinic with its active doctors and doctor count.
+   * @throws NotFoundException if the clinic is not found.
    */
   async findOne(id: string) {
     const clinic = await this.prisma.clinic.findUnique({
@@ -157,71 +154,38 @@ export class ClinicService {
         },
       },
     });
-
     if (!clinic) {
       throw new NotFoundException('Clinic not found');
     }
-
     return clinic;
   }
 
   /**
-   * Update clinic
+   * Updates a clinic.
+   *
+   * @param id - The ID of the clinic to update.
+   * @param updateClinicDto - The data to update the clinic.
+   * @returns The updated clinic.
+   * @throws NotFoundException if the clinic is not found.
+   * @throws ConflictException if the updated name, phone, or email already exists.
    */
   async update(id: string, updateClinicDto: UpdateClinicDto) {
-    // Check if clinic exists
     const existingClinic = await this.prisma.clinic.findUnique({
       where: { id },
     });
-
     if (!existingClinic) {
       throw new NotFoundException('Clinic not found');
     }
-
     const { name, phone, email, ...otherData } = updateClinicDto;
-
-    // Check for conflicts only if the values are being changed
     if (name && name !== existingClinic.name) {
-      const nameConflict = await this.prisma.clinic.findFirst({
-        where: {
-          name: { equals: name, mode: 'insensitive' },
-          id: { not: id },
-        },
-      });
-
-      if (nameConflict) {
-        throw new ConflictException('Clinic with this name already exists');
-      }
+      await this.checkUniqueness(id, 'name', name);
     }
-
     if (phone && phone !== existingClinic.phone) {
-      const phoneConflict = await this.prisma.clinic.findFirst({
-        where: {
-          phone,
-          id: { not: id },
-        },
-      });
-
-      if (phoneConflict) {
-        throw new ConflictException(
-          'Clinic with this phone number already exists',
-        );
-      }
+      await this.checkUniqueness(id, 'phone', phone);
     }
-
     if (email && email !== existingClinic.email) {
-      const emailConflict = await this.prisma.clinic.findFirst({
-        where: {
-          email: { equals: email, mode: 'insensitive' },
-          id: { not: id },
-        },
-      });
-
-      if (emailConflict) {
-        throw new ConflictException('Clinic with this email already exists');
-      }
+      await this.checkUniqueness(id, 'email', email);
     }
-
     const updatedClinic = await this.prisma.clinic.update({
       where: { id },
       data: {
@@ -236,14 +200,18 @@ export class ClinicService {
         },
       },
     });
-
     return updatedClinic;
   }
 
   /**
-   * Soft delete clinic (set isActive to false)
+   * Deactivates a clinic by setting isActive to false.
+   *
+   * @param id - The ID of the clinic to deactivate.
+   * @returns The deactivated clinic.
+   * @throws NotFoundException if the clinic is not found.
+   * @throws BadRequestException if the clinic has active doctors.
    */
-  async remove(id: string) {
+  async deactivate(id: string) {
     const clinic = await this.prisma.clinic.findUnique({
       where: { id },
       include: {
@@ -252,26 +220,20 @@ export class ClinicService {
         },
       },
     });
-
     if (!clinic) {
       throw new NotFoundException('Clinic not found');
     }
-
-    // Check if clinic has active doctors
     const activeDoctors = await this.prisma.doctor.count({
       where: {
         clinicId: id,
         isActive: true,
       },
     });
-
     if (activeDoctors > 0) {
       throw new BadRequestException(
-        'Cannot delete clinic with active doctors. Please reassign or deactivate doctors first.',
+        'Cannot deactivate clinic with active doctors. Please reassign or deactivate doctors first.',
       );
     }
-
-    // Soft delete by setting isActive to false
     const updatedClinic = await this.prisma.clinic.update({
       where: { id },
       data: { isActive: false },
@@ -281,22 +243,23 @@ export class ClinicService {
         },
       },
     });
-
     return updatedClinic;
   }
 
   /**
-   * Activate clinic
+   * Activates a clinic by setting isActive to true.
+   *
+   * @param id - The ID of the clinic to activate.
+   * @returns The activated clinic.
+   * @throws NotFoundException if the clinic is not found.
    */
   async activate(id: string) {
     const clinic = await this.prisma.clinic.findUnique({
       where: { id },
     });
-
     if (!clinic) {
       throw new NotFoundException('Clinic not found');
     }
-
     const updatedClinic = await this.prisma.clinic.update({
       where: { id },
       data: { isActive: true },
@@ -306,20 +269,21 @@ export class ClinicService {
         },
       },
     });
-
     return updatedClinic;
   }
 
   /**
-   * Get clinic statistics
+   * Retrieves statistics about clinics.
+   *
+   * @returns An object containing various clinic statistics.
    */
   async getClinicStats() {
     const [
-      totalClinics,
-      activeClinics,
-      inactiveClinics,
-      clinicsWithDoctors,
-      avgDoctorsPerClinic,
+      totalClinics, // Total number of clinics
+      activeClinics, // Number of active clinics
+      inactiveClinics, // Number of inactive clinics
+      clinicsWithDoctors, // Number of clinics with at least one active doctor
+      avgDoctorsPerClinic, // Average number of active doctors per clinic
     ] = await Promise.all([
       this.prisma.clinic.count(),
       this.prisma.clinic.count({ where: { isActive: true } }),
@@ -349,7 +313,6 @@ export class ClinicService {
             : 0;
         }),
     ]);
-
     return {
       totalClinics,
       activeClinics,
@@ -361,17 +324,19 @@ export class ClinicService {
   }
 
   /**
-   * Get doctors by clinic ID
+   * Retrieves the doctors of a clinic.
+   *
+   * @param clinicId - The ID of the clinic.
+   * @returns An object containing the clinic details and its doctors.
+   * @throws NotFoundException if the clinic is not found.
    */
   async getClinicDoctors(clinicId: string) {
     const clinic = await this.prisma.clinic.findUnique({
       where: { id: clinicId },
     });
-
     if (!clinic) {
       throw new NotFoundException('Clinic not found');
     }
-
     const doctors = await this.prisma.doctor.findMany({
       where: { clinicId },
       select: {
@@ -386,7 +351,6 @@ export class ClinicService {
       },
       orderBy: { name: 'asc' },
     });
-
     return {
       clinic: {
         id: clinic.id,
