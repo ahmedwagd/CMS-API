@@ -7,6 +7,7 @@ import { LocalStrategy } from 'src/common/strategies/local.strategy';
 import { JwtRefreshStrategy } from 'src/common/strategies/refresh-token.strategy';
 import jwtConfig from 'src/config/jwt.config';
 import refreshConfig from 'src/config/refresh.config';
+import { UsersModule } from 'src/modules/users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
@@ -15,8 +16,8 @@ import { AuthService } from './auth.service';
     ConfigModule.forFeature(jwtConfig),
     ConfigModule.forFeature(refreshConfig),
     JwtModule.registerAsync(jwtConfig.asProvider()),
-
     PassportModule,
+    UsersModule,
   ],
   providers: [AuthService, JwtStrategy, LocalStrategy, JwtRefreshStrategy],
   exports: [AuthService],

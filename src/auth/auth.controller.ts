@@ -15,15 +15,17 @@ import { LocalAuthGuard } from 'src/common/guards/local-auth.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { AuthService } from './auth.service';
 import { CreateUserDto, LoginDto } from './dto';
+import { RequirePermissions } from 'src/common/decorators/permissions.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
   @Post('register')
   @UseGuards(JwtAuthGuard, RolesGuard) // Role based access
-  @Roles('admin')
+  @Roles('admin', 'super_admin')
+  @RequirePermissions('create_users')
   // @UseGuards(JwtAuthGuard, PermissionsGuard) // Permission based access
-  // @RequirePermissions('create_users')
   async register(@Body() createUserDto: CreateUserDto) {
     return this.authService.register(createUserDto);
   }

@@ -10,6 +10,7 @@ import { hash, verify } from 'argon2';
 import jwtConfig from 'src/config/jwt.config';
 import refreshConfig from 'src/config/refresh.config';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { UsersService } from 'src/modules/users/users.service';
 import { CreateUserDto, LoginDto } from './dto';
 
 @Injectable()
@@ -17,55 +18,16 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly usersService: UsersService,
     @Inject(jwtConfig.KEY)
     private jwtTokenConfig: ConfigType<typeof jwtConfig>,
     @Inject(refreshConfig.KEY)
     private refreshTokenConfig: ConfigType<typeof refreshConfig>,
   ) {}
+
   async register(createUserDto: CreateUserDto) {
-    const { email, password, name, roleId } = createUserDto;
-
-    // Check if user already exists
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      throw new ConflictException('User with this email already exists');
-    }
-
-    // Check if role exists
-    const role = await this.prisma.role.findUnique({
-      where: { id: roleId },
-    });
-
-    if (!role) {
-      throw new UnauthorizedException('Invalid role');
-    }
-
-    // Hash password
-    const hashedPassword = await hash(password);
-
-    // Create user
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-        roleId,
-      },
-      include: {
-        role: {
-          include: {
-            permissions: {
-              include: {
-                permission: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    // Delegate user creation to the UsersService
+    const user = await this.usersService.create(createUserDto);
 
     // Generate tokens
     const tokens = await this.generateTokens(user.id, user.email);
@@ -80,20 +42,7 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const { email, password } = loginDto;
 
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-      include: {
-        role: {
-          include: {
-            permissions: {
-              include: {
-                permission: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const user = await this.usersService.findByEmail(email);
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Invalid credentials');
@@ -105,10 +54,7 @@ export class AuthService {
     }
 
     // Update last login
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
+    await this.usersService.updateLastLogin(user.id);
 
     // Generate tokens
     const tokens = await this.generateTokens(user.id, user.email);
@@ -149,6 +95,7 @@ export class AuthService {
       where: { id: userId },
       data: { hashedRefreshToken: null },
     });
+    return { message: 'Logged out successfully' };
   }
 
   private async generateTokens(userId: string, email: string) {
@@ -182,44 +129,11 @@ export class AuthService {
   }
 
   async validateUser(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-      include: {
-        role: {
-          include: {
-            permissions: {
-              include: {
-                permission: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const user = await this.usersService.findByEmail(email);
 
     if (user && user.isActive && (await verify(user.password, password))) {
       return this.excludePassword(user);
     }
     return null;
-  }
-
-  async findUserById(id: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-      include: {
-        role: {
-          include: {
-            permissions: {
-              include: {
-                permission: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!user) return null;
-    return this.excludePassword(user);
   }
 }
