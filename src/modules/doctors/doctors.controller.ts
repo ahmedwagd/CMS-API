@@ -81,13 +81,7 @@ export class DoctorsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query() filterDto: DoctorAppointmentFilterDto,
   ) {
-    const { startDate, endDate, ...rest } = filterDto;
-    const filter = {
-      ...rest,
-      ...(startDate && { startDate: new Date(startDate) }),
-      ...(endDate && { endDate: new Date(endDate) }),
-    };
-    return this.doctorsService.getDoctorAppointments(id, filter);
+    return this.doctorsService.getDoctorAppointments(id, filterDto);
   }
 
   @Patch(':id')
