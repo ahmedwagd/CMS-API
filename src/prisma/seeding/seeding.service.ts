@@ -68,6 +68,28 @@ export class SeederService {
         category: 'permission',
       },
 
+      // Clinics Management
+      {
+        name: 'view_clinics',
+        description: 'View clinic list',
+        category: 'clinic',
+      },
+      {
+        name: 'create_clinics',
+        description: 'Create new clinics',
+        category: 'clinic',
+      },
+      {
+        name: 'edit_clinics',
+        description: 'Edit clinic information',
+        category: 'clinic',
+      },
+      {
+        name: 'delete_clinics',
+        description: 'Delete clinics',
+        category: 'clinic',
+      },
+
       // Patient Management
       {
         name: 'view_patients',
