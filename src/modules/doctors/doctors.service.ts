@@ -15,8 +15,14 @@ import {
 @Injectable()
 export class DoctorsService {
   constructor(private readonly prisma: PrismaService) {}
-
-  async create(createDoctorDto: CreateDoctorDto) {
+  /**
+   * Creates a new doctor.
+   * @param {CreateDoctorDto} createDoctorDto - The data transfer object containing doctor information.
+   * @returns {Promise<any>} A promise that resolves to the created doctor object.
+   * @throws {ConflictException} If a doctor with the same phone, email, socialId, or licenseNumber already exists.
+   * @throws {BadRequestException} If the provided clinicId is invalid or the clinic is inactive.
+   */
+  async create(createDoctorDto: CreateDoctorDto): Promise<any> {
     const { phone, email, socialId, licenseNumber, clinicId, ...doctorData } =
       createDoctorDto;
 
@@ -90,7 +96,15 @@ export class DoctorsService {
     return doctor;
   }
 
-  async findAll(filterDto?: FilterDoctorDto) {
+  /**
+   * Retrieves all doctors with optional filtering.
+   * @param {FilterDoctorDto} [filterDto] - The filter criteria for retrieving doctors.
+   * @returns {Promise<{ data: any[], pagination: { page: number, limit: number, total: number, pages: number } }>} A promise that resolves to an object containing the list of doctors and pagination information.
+   */
+  async findAll(filterDto?: FilterDoctorDto): Promise<{
+    data: any[];
+    pagination: { page: number; limit: number; total: number; pages: number };
+  }> {
     const {
       page = 1,
       limit = 10,
@@ -183,7 +197,13 @@ export class DoctorsService {
     };
   }
 
-  async findOne(id: string) {
+  /**
+   * Retrieves a single doctor by ID.
+   * @param {string} id - The UUID of the doctor to retrieve.
+   * @returns {Promise<any>} A promise that resolves to the doctor object.
+   * @throws {NotFoundException} If the doctor with the specified ID is not found.
+   */
+  async findOne(id: string): Promise<any> {
     const doctor = await this.prisma.doctor.findUnique({
       where: { id },
       include: {
@@ -265,7 +285,16 @@ export class DoctorsService {
     return doctor;
   }
 
-  async update(id: string, updateDoctorDto: UpdateDoctorDto) {
+  /**
+   * Updates a doctor's information.
+   * @param {string} id - The UUID of the doctor to update.
+   * @param {UpdateDoctorDto} updateDoctorDto - The data transfer object containing updated doctor information.
+   * @returns {Promise<any>} A promise that resolves to the updated doctor object.
+   * @throws {NotFoundException} If the doctor with the specified ID is not found.
+   * @throws {ConflictException} If the updated phone, email, socialId, or licenseNumber already exists for another doctor.
+   * @throws {BadRequestException} If the provided clinicId is invalid or the clinic is inactive.
+   */
+  async update(id: string, updateDoctorDto: UpdateDoctorDto): Promise<any> {
     const { phone, email, socialId, licenseNumber, clinicId, ...updateData } =
       updateDoctorDto;
 
@@ -355,7 +384,13 @@ export class DoctorsService {
     return doctor;
   }
 
-  async remove(id: string) {
+  /**
+   * Removes a doctor or deactivates them if they have associated records.
+   * @param {string} id - The UUID of the doctor to remove.
+   * @returns {Promise<any>} A promise that resolves to the deleted or deactivated doctor object.
+   * @throws {NotFoundException} If the doctor with the specified ID is not found.
+   */
+  async remove(id: string): Promise<any> {
     const doctor = await this.prisma.doctor.findUnique({
       where: { id },
       include: {
@@ -402,7 +437,13 @@ export class DoctorsService {
     }
   }
 
-  async activate(id: string) {
+  /**
+   * Activates a doctor.
+   * @param {string} id - The UUID of the doctor to activate.
+   * @returns {Promise<any>} A promise that resolves to the activated doctor object.
+   * @throws {NotFoundException} If the doctor with the specified ID is not found.
+   */
+  async activate(id: string): Promise<any> {
     const doctor = await this.prisma.doctor.findUnique({
       where: { id },
     });
@@ -427,7 +468,11 @@ export class DoctorsService {
     });
   }
 
-  async getDoctorStats() {
+  /**
+   * Retrieves statistics about doctors.
+   * @returns {Promise<any>} A promise that resolves to an object containing various doctor statistics.
+   */
+  async getDoctorStats(): Promise<any> {
     const [
       totalDoctors,
       activeDoctors,
@@ -518,12 +563,27 @@ export class DoctorsService {
     };
   }
 
+  /**
+   * Retrieves appointments for a doctor.
+   * @param {string} userId - The UUID of the user (doctor).
+   * @param {DoctorAppointmentFilterDto} filterDto - Optional filter criteria.
+   * @returns {Promise<any>} A promise that resolves to an object containing doctor appointments.
+   * @throws {NotFoundException} If the user (doctor) with the specified ID is not found.
+   */
   async getDoctorAppointments(
-    doctorId: string,
+    userId: string,
     filterDto?: DoctorAppointmentFilterDto,
-  ) {
+  ): Promise<any> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     const doctor = await this.prisma.doctor.findUnique({
-      where: { id: doctorId },
+      where: { userId },
     });
 
     if (!doctor) {
@@ -539,7 +599,7 @@ export class DoctorsService {
     } = filterDto || {};
 
     const skip = (page - 1) * limit;
-    const where: any = { doctorId };
+    const where: any = { doctorId: doctor.id };
 
     if (status) {
       where.status = status;
@@ -593,7 +653,15 @@ export class DoctorsService {
     };
   }
 
-  async assignToClinic(doctorId: string, clinicId: string) {
+  /**
+   * Assigns a doctor to a clinic.
+   * @param {string} doctorId - The UUID of the doctor.
+   * @param {string} clinicId - The UUID of the clinic.
+   * @returns {Promise<any>} A promise that resolves to the updated doctor object.
+   * @throws {NotFoundException} If the doctor or clinic with the specified IDs is not found.
+   * @throws {BadRequestException} If the clinic is inactive.
+   */
+  async assignToClinic(doctorId: string, clinicId: string): Promise<any> {
     const doctor = await this.prisma.doctor.findUnique({
       where: { id: doctorId },
     });
@@ -628,7 +696,13 @@ export class DoctorsService {
     });
   }
 
-  async removeFromClinic(doctorId: string) {
+  /**
+   * Removes a doctor from their assigned clinic.
+   * @param {string} doctorId - The UUID of the doctor.
+   * @returns {Promise<any>} A promise that resolves to the updated doctor object.
+   * @throws {NotFoundException} If the doctor with the specified ID is not found.
+   */
+  async removeFromClinic(doctorId: string): Promise<any> {
     const doctor = await this.prisma.doctor.findUnique({
       where: { id: doctorId },
     });
@@ -652,7 +726,160 @@ export class DoctorsService {
     });
   }
 
-  async getDoctorSchedule(doctorId: string, startDate: Date, endDate: Date) {
+  /**
+   * Links a doctor to a user.
+   * @param {string} doctorId - The UUID of the doctor.
+   * @param {string} userId - The UUID of the user.
+   * @returns {Promise<any>} A promise that resolves to the updated doctor object.
+   * @throws {NotFoundException} If the doctor or user with the specified IDs is not found.
+   * @throws {ConflictException} If the doctor or user is already linked.
+   */
+  async linkDoctorToUser(doctorId: string, userId: string): Promise<any> {
+    // Validate doctor exists and is not linked
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id: doctorId },
+      include: { user: true },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException('Doctor not found');
+    }
+
+    if (doctor.user) {
+      throw new ConflictException(
+        `Doctor is already linked to user ${doctor.user.email}`,
+      );
+    }
+
+    // Validate user exists and doesn't have a doctor profile
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { doctor: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.doctor) {
+      throw new ConflictException(
+        `User is already linked to doctor ${user.doctor.name}`,
+      );
+    }
+
+    // Link them
+    return this.prisma.doctor.update({
+      where: { id: doctorId },
+      data: { userId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            isActive: true,
+          },
+        },
+        clinic: true,
+      },
+    });
+  }
+
+  /**
+   * Unlinks a doctor from their user.
+   * @param {string} doctorId - The UUID of the doctor.
+   * @returns {Promise<any>} A promise that resolves to the updated doctor object.
+   * @throws {NotFoundException} If the doctor with the specified ID is not found.
+   */
+  async unlinkDoctorFromUser(doctorId: string): Promise<any> {
+    return this.prisma.doctor.update({
+      where: { id: doctorId },
+      data: { userId: null }, // This requires making userId optional in schema
+      include: { clinic: true },
+    });
+  }
+
+  /**
+   * Retrieves a doctor's profile.
+   * @param {string} userId - The UUID of the user.
+   * @returns {Promise<any>} A promise that resolves to the doctor's profile object.
+   * @throws {NotFoundException} If the doctor profile with the specified user ID is not found.
+   */
+  async getDoctorProfile(userId: string): Promise<any> {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { userId },
+      include: {
+        clinic: true,
+        _count: {
+          select: {
+            appointments: true,
+            examinations: true,
+            treatmentPlans: true,
+          },
+        },
+      },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException('Doctor profile not found');
+    }
+    return doctor;
+  }
+
+  /**
+   * Updates a doctor's profile.
+   * @param {string} userId - The UUID of the user.
+   * @param {UpdateDoctorDto} updateDoctorDto - The data to update.
+   * @returns {Promise<any>} A promise that resolves to the updated doctor object.
+   * @throws {NotFoundException} If the doctor profile with the specified user ID is not found.
+   */
+  async updateDoctorProfile(
+    userId: string,
+    updateDoctorDto: UpdateDoctorDto,
+  ): Promise<any> {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { userId },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException('Doctor profile not found');
+    }
+    // Doctors can only update certain fields about themselves
+    const allowedUpdates = {
+      phone: updateDoctorDto.phone,
+      email: updateDoctorDto.email,
+      specialization: updateDoctorDto.specialization,
+    };
+    const updatedDoctor = await this.prisma.doctor.update({
+      where: { userId },
+      data: allowedUpdates,
+      include: {
+        clinic: true,
+        _count: {
+          select: {
+            appointments: true,
+            examinations: true,
+            treatmentPlans: true,
+          },
+        },
+      },
+    });
+    return updatedDoctor;
+  }
+
+  /**
+   * Retrieves a doctor's schedule.
+   * @param {string} doctorId - The UUID of the doctor.
+   * @param {Date} startDate - The start date of the schedule.
+   * @param {Date} endDate - The end date of the schedule.
+   * @returns {Promise<any>} A promise that resolves to the doctor's schedule object.
+   * @throws {NotFoundException} If the doctor with the specified ID is not found.
+   */
+  async getDoctorSchedule(
+    doctorId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<any> {
     const doctor = await this.prisma.doctor.findUnique({
       where: { id: doctorId },
     });
@@ -684,7 +911,20 @@ export class DoctorsService {
     return appointments;
   }
 
-  async getDoctorWorkload(doctorId: string, year: number, month?: number) {
+  /**
+   * Retrieves a doctor's workload.
+   * @param {string} doctorId - The UUID of the doctor.
+   * @param {number} year - The year.
+   * @param {number} month - The month.
+   * @returns {Promise<any>} A promise that resolves to the doctor's workload object.
+   * @throws {NotFoundException} If the doctor with the specified ID is not found.
+   */
+
+  async getDoctorWorkload(
+    doctorId: string,
+    year: number,
+    month?: number,
+  ): Promise<any> {
     const doctor = await this.prisma.doctor.findUnique({
       where: { id: doctorId },
     });

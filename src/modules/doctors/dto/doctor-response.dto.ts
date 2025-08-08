@@ -26,6 +26,14 @@ export class DoctorResponseDto {
     };
   };
 
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+    isActive: boolean;
+    lastLoginAt?: Date;
+  };
+
   _count?: {
     appointments: number;
     examinations: number;

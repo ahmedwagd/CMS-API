@@ -60,8 +60,4 @@ export class CreateDoctorDto {
   @IsOptional()
   @IsUUID()
   clinicId?: string;
-
-  @IsNotEmpty()
-  @IsUUID()
-  userId?: string;
 }
