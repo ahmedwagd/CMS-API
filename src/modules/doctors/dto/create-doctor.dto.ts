@@ -23,7 +23,7 @@ export class CreateDoctorDto {
   @Matches(/^[+]?[0-9\s\-()]{10,20}$/, {
     message: 'Phone number must be valid',
   })
-  phone: string;
+  phone?: string;
 
   @IsOptional()
   @IsEmail()
@@ -60,4 +60,8 @@ export class CreateDoctorDto {
   @IsOptional()
   @IsUUID()
   clinicId?: string;
+
+  @IsNotEmpty()
+  @IsUUID()
+  userId?: string;
 }
