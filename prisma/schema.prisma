@@ -46,7 +46,8 @@ model User {
   updatedAt          DateTime  @updatedAt
 
   // Relations
-  role Role @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  role   Role    @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  doctor Doctor?
 
   @@map("users")
 }
@@ -133,12 +134,14 @@ model Doctor {
   specialization String?  @db.VarChar(255)
   licenseNumber  String?  @unique @db.VarChar(100)
   clinicId       String?
+  userId         String   @unique
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   // Relations
   clinic         Clinic?         @relation(fields: [clinicId], references: [id])
+  user           User            @relation(fields: [userId], references: [id])
   appointments   Appointment[]
   examinations   Examination[]
   treatmentPlans TreatmentPlan[]
