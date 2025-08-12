@@ -4,3 +4,6 @@ export * from './filter-patient.dto';
 export * from './patient-appointment-filter.dto';
 export * from './patient-response.dto';
 export * from './add-progression-note.dto';
+export * from './patient-medical-summary.dto';
+export * from './bulk-patient-operations.dto';
+export * from './patient-medical-timeline.dto';

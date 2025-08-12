@@ -22,6 +22,10 @@ import {
   PatientResponseDto,
   PatientAppointmentFilterDto,
   AddProgressionNoteDto,
+  PatientMedicalSummaryDto,
+  PatientMedicalTimelineDto,
+  BulkActivateDeactivateDto,
+  BulkDeleteDto,
 } from './dto';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
@@ -146,5 +150,51 @@ export class PatientsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.patientsService.remove(id);
+  }
+
+  @Get(':id/medical-summary')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('view_patients', 'view_medical_records')
+  async getPatientMedicalSummary(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() summaryDto: PatientMedicalSummaryDto,
+  ) {
+    return this.patientsService.getPatientMedicalSummary(id, summaryDto);
+  }
+
+  @Get(':id/medical-timeline')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions('view_patients', 'view_medical_records')
+  async getPatientMedicalTimeline(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() timelineDto: PatientMedicalTimelineDto,
+  ) {
+    return this.patientsService.getPatientMedicalTimeline(id, timelineDto);
+  }
+
+  @Post('bulk-activate-deactivate')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin', 'super_admin')
+  @RequirePermissions('edit_patients')
+  @HttpCode(HttpStatus.OK)
+  async bulkActivateDeactivate(@Body() bulkDto: BulkActivateDeactivateDto) {
+    return this.patientsService.bulkActivateDeactivate(bulkDto);
+  }
+
+  @Post('bulk-delete')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin', 'super_admin')
+  @RequirePermissions('delete_patients')
+  @HttpCode(HttpStatus.OK)
+  async bulkDelete(@Body() bulkDeleteDto: BulkDeleteDto) {
+    return this.patientsService.bulkDelete(bulkDeleteDto);
+  }
+
+  @Get('follow-up-needed')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin', 'super_admin', 'doctor')
+  @RequirePermissions('view_patients')
+  async getPatientsForFollowUp(@Query('daysThreshold') daysThreshold?: number) {
+    return this.patientsService.getPatientsForFollowUp(daysThreshold);
   }
 }
