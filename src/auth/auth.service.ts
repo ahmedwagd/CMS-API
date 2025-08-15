@@ -26,11 +26,11 @@ export class AuthService {
   ) {}
 
   async register(createUserDto: CreateUserDto) {
-    // Delegate user creation to the UsersService
     const user = await this.usersService.create(createUserDto);
 
-    // Generate tokens
-    const tokens = await this.generateTokens(user.id, user.email);
+    // Get user with complete role and permissions data
+    const userWithRoleData = await this.usersService.findOne(user.id);
+    const tokens = await this.generateTokens(userWithRoleData);
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
     return {
@@ -41,7 +41,6 @@ export class AuthService {
 
   async login(loginDto: LoginDto) {
     const { email, password } = loginDto;
-
     const user = await this.usersService.findByEmail(email);
 
     if (!user || !user.isActive) {
@@ -53,11 +52,8 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Update last login
     await this.usersService.updateLastLogin(user.id);
-
-    // Generate tokens
-    const tokens = await this.generateTokens(user.id, user.email);
+    const tokens = await this.generateTokens(user);
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
     return {
@@ -69,6 +65,21 @@ export class AuthService {
   async refresh(userId: string, refreshToken: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      include: {
+        role: {
+          include: {
+            permissions: {
+              include: {
+                permission: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!user || !user.hashedRefreshToken) {
@@ -79,14 +90,12 @@ export class AuthService {
       user.hashedRefreshToken,
       refreshToken,
     );
-
     if (!isRefreshTokenValid) {
       throw new UnauthorizedException('Access denied');
     }
 
-    const tokens = await this.generateTokens(user.id, user.email);
+    const tokens = await this.generateTokens(user);
     await this.updateRefreshToken(user.id, tokens.refreshToken);
-
     return tokens;
   }
 
@@ -101,15 +110,17 @@ export class AuthService {
   async changePassword(email: string, changePasswordDto: ChangePasswordDto) {
     const { oldPassword, newPassword } = changePasswordDto;
     const user = await this.usersService.findByEmail(email);
+
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
     const isPasswordValid = await verify(user.password, oldPassword);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
     const hashedPassword = await hash(newPassword);
-    // Todo: after update userService changePassword method change this
     await this.usersService.update(user.id, {
       password: hashedPassword,
     });
@@ -117,8 +128,18 @@ export class AuthService {
     return { message: 'Password changed successfully' };
   }
 
-  private async generateTokens(userId: string, email: string) {
-    const payload = { sub: userId, email };
+  // Updated method to generate tokens with role and permissions
+  private async generateTokens(user: any) {
+    // Extract permissions array from the nested structure
+    const permissions =
+      user.role?.permissions?.map((rp: any) => rp.permission.name) || [];
+
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role?.name || '',
+      permissions,
+    };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
@@ -149,7 +170,6 @@ export class AuthService {
 
   async validateUser(email: string, password: string) {
     const user = await this.usersService.findByEmail(email);
-
     if (user && user.isActive && (await verify(user.password, password))) {
       return this.excludePassword(user);
     }
