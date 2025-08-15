@@ -1,14 +1,14 @@
+import { Type } from 'class-transformer';
 import {
+  IsDateString,
+  IsEnum,
+  IsIn,
+  IsInt,
   IsOptional,
   IsString,
-  IsDateString,
-  IsInt,
-  Min,
   Max,
-  IsIn,
-  IsEnum,
+  Min,
 } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
 
 export enum MedicalRecordType {
   EXAMINATION = 'examination',
