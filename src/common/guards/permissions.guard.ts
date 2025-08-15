@@ -16,14 +16,22 @@ export class PermissionsGuard implements CanActivate {
     }
 
     const { user } = context.switchToHttp().getRequest();
-
-    if (!user || !user.role || !user.role.permissions) {
+    if (!user) {
       return false;
     }
 
-    const userPermissions = user.role.permissions.map(
-      (rp) => rp.permission.name,
-    );
+    // Handle both old structure (user.role.permissions) and new JWT structure (user.permissions)
+    let userPermissions: string[] = [];
+
+    if (user.permissions && Array.isArray(user.permissions)) {
+      // New JWT payload structure
+      userPermissions = user.permissions;
+    } else if (user.role?.permissions) {
+      // Old database structure (fallback)
+      userPermissions = user.role.permissions.map(
+        (rp: any) => rp.permission.name,
+      );
+    }
 
     return requiredPermissions.some((permission) =>
       userPermissions.includes(permission),
