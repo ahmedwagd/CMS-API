@@ -1,8 +1,9 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { ConfigService } from '@nestjs/config';
 import { UsersService } from 'src/modules/users/users.service';
+import { AuthJwtPayload } from '../types/auth-jwtPayload';
 /**
  * JWT strategy
  * @description This strategy is used to validate JWT tokens
@@ -23,11 +24,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: any) {
-    const user = await this.usersService.findOne(payload.sub);
-    if (!user) {
-      throw new UnauthorizedException();
-    }
+  async validate(payload: AuthJwtPayload) {
+    // You can choose to either:
+    // Option 1: Trust the JWT payload (faster, but token must be refreshed when permissions change)
+    const user = {
+      id: payload.sub,
+      email: payload.email,
+      role: { name: payload.role },
+      permissions: payload.permissions,
+    };
+
+    // Option 2: Always fetch fresh data from DB (slower, but always current)
+    // const user = await this.usersService.findOne(payload.sub);
+    // if (!user || !user.isActive) {
+    //   throw new UnauthorizedException();
+    // }
+
     return user;
   }
 }
