@@ -16,6 +16,7 @@ import { RolesGuard } from 'src/common/guards/roles.guard';
 import { AuthService } from './auth.service';
 import { ChangePasswordDto, CreateUserDto, LoginDto } from './dto';
 import { RequirePermissions } from 'src/common/decorators/permissions.decorator';
+import { PermissionsGuard } from 'src/common/guards/permissions.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -25,7 +26,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard, RolesGuard) // Role based access
   @Roles('admin', 'super_admin')
   @RequirePermissions('create_users')
-  // @UseGuards(JwtAuthGuard, PermissionsGuard) // Permission based access
+  @UseGuards(JwtAuthGuard, PermissionsGuard) // Permission based access
   async register(@Body() createUserDto: CreateUserDto) {
     return this.authService.register(createUserDto);
   }
