@@ -1,7 +1,8 @@
 export type AuthJwtPayload = {
-  sub: string; // user id
+  sub: string;
   email: string;
-  roleId: string;
+  role: string; // Role name instead of roleId
+  permissions: string[]; // Array of permission names
   iat?: number;
   exp?: number;
 };
