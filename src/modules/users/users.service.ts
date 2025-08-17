@@ -12,6 +12,7 @@ import {
   FilterUserDto,
   UpdateUserDto,
 } from './dto';
+import { formatUserResponse } from 'src/common/utils/user-response.util';
 
 /**
  * Users service
@@ -122,7 +123,7 @@ export class UsersService {
       orderBy[sortBy] = sortOrder;
     }
 
-    const [users, total] = await Promise.all([
+    const [users, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({
         where,
         skip,
@@ -130,10 +131,12 @@ export class UsersService {
         orderBy,
         include: {
           role: {
-            select: {
-              id: true,
-              name: true,
-              description: true,
+            include: {
+              permissions: {
+                include: {
+                  permission: true,
+                },
+              },
             },
           },
         },
@@ -142,12 +145,10 @@ export class UsersService {
     ]);
 
     // Remove passwords from response
-    const usersWithoutPasswords = users.map(
-      ({ password, hashedRefreshToken, ...user }) => user,
-    );
+    const usersFormatted = users.map((u) => formatUserResponse(u));
 
     return {
-      data: usersWithoutPasswords,
+      data: usersFormatted,
       pagination: {
         page,
         limit,
@@ -171,14 +172,7 @@ export class UsersService {
           include: {
             permissions: {
               include: {
-                permission: {
-                  select: {
-                    id: true,
-                    name: true,
-                    description: true,
-                    category: true,
-                  },
-                },
+                permission: true,
               },
             },
           },
@@ -208,14 +202,7 @@ export class UsersService {
           include: {
             permissions: {
               include: {
-                permission: {
-                  select: {
-                    id: true,
-                    name: true,
-                    description: true,
-                    category: true,
-                  },
-                },
+                permission: true,
               },
             },
           },
@@ -289,18 +276,11 @@ export class UsersService {
         ...(hashedPassword && { password: hashedPassword }),
       },
       include: {
-        role: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
+        role: { include: { permissions: { include: { permission: true } } } },
       },
     });
 
-    const { password: _, hashedRefreshToken, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    return formatUserResponse(user);
   }
 
   /**
@@ -323,19 +303,11 @@ export class UsersService {
       where: { id },
       data: { isActive: false },
       include: {
-        role: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
+        role: { include: { permissions: { include: { permission: true } } } },
       },
     });
 
-    const { password, hashedRefreshToken, ...userWithoutPassword } =
-      updatedUser;
-    return userWithoutPassword;
+    return formatUserResponse(updatedUser);
   }
 
   /**
@@ -357,19 +329,11 @@ export class UsersService {
       where: { id },
       data: { isActive: true },
       include: {
-        role: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
+        role: { include: { permissions: { include: { permission: true } } } },
       },
     });
 
-    const { password, hashedRefreshToken, ...userWithoutPassword } =
-      updatedUser;
-    return userWithoutPassword;
+    return formatUserResponse(updatedUser);
   }
 
   /**
@@ -400,13 +364,18 @@ export class UsersService {
    */
   async getUserStats() {
     const [totalUsers, activeUsers, inactiveUsers, usersByRole] =
-      await Promise.all([
+      await this.prisma.$transaction([
         this.prisma.user.count(),
         this.prisma.user.count({ where: { isActive: true } }),
         this.prisma.user.count({ where: { isActive: false } }),
         this.prisma.user.groupBy({
           by: ['roleId'],
-          _count: true,
+          _count: {
+            _all: true,
+          },
+          orderBy: {
+            roleId: 'asc',
+          },
           where: { isActive: true },
         }),
       ]);
