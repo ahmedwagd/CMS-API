@@ -12,6 +12,7 @@ import refreshConfig from 'src/config/refresh.config';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UsersService } from 'src/modules/users/users.service';
 import { ChangePasswordDto, CreateUserDto, LoginDto } from './dto';
+import { formatUserResponse } from 'src/common/utils/user-response.util';
 
 @Injectable()
 export class AuthService {
@@ -34,7 +35,7 @@ export class AuthService {
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
     return {
-      user: this.excludePassword(user),
+      user: formatUserResponse(user),
       ...tokens,
     };
   }
@@ -61,7 +62,7 @@ export class AuthService {
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
     return {
-      user: this.excludePassword(user),
+      user: formatUserResponse(user),
       ...tokens,
     };
   }
@@ -87,7 +88,10 @@ export class AuthService {
     const tokens = await this.generateTokens(user.id, user.email);
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
-    return tokens;
+    return {
+      user: formatUserResponse(user),
+      ...tokens,
+    };
   }
 
   async logout(userId: string) {
