@@ -195,10 +195,19 @@ export class RolesService {
   }
 
   async findAllPermissions() {
-    return this.prisma.permission.findMany({
+    const permissions = await this.prisma.permission.findMany({
       where: { isActive: true },
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
+
+    const permissionsFormatted = permissions.map((permission) => ({
+      permissionId: permission.id,
+      name: permission.name,
+      description: permission.description,
+      category: permission.category,
+    }));
+
+    return permissionsFormatted;
   }
 
   async findPermissionsByCategory(category: string) {
