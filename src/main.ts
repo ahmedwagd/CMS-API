@@ -25,9 +25,11 @@ async function bootstrap() {
     }),
   );
 
+  const port = process.env.PORT || 3030;
+
   // Set the global route prefix
   app.setGlobalPrefix('api/v1');
-
-  await app.listen(process.env.PORT ?? 3030);
+  // await app.listen(process.env.PORT ?? 3030);
+  await app.listen(port, '0.0.0.0');
 }
 bootstrap();
